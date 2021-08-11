@@ -1,0 +1,298 @@
+zabbix_export:
+  version: '5.2'
+  date: '2021-08-11T13:42:45Z'
+  groups:
+    -
+      name: Servers1C
+  templates:
+    -
+      template: CheckCluster1C
+      name: 'Проверка кластера 1С'
+      description: |
+        Проверка параметров кластера 1С с помощью запросов к серверу администрирования 1С (RAS/RAC).
+        
+        Проверка происходит через утилиту удаленного управления rac.exe.
+        Необходимо проверить макросы:
+        - {$RAC.EXE} - путь к утилите на сервере. Версия утилиты должны соответствовать службы ras.exe, версия которой должно соответствовать версии сервера 1С.
+        - {$HOST} и {$PORT} - адрес хоста и порт на котором работает утилита.
+      groups:
+        -
+          name: Servers1C
+      applications:
+        -
+          name: RAC/RAS
+        -
+          name: 'Проверка кластера 1С'
+      items:
+        -
+          name: CLUSTER1C.UUID
+          key: 'CLUSTER1C.UUID[{$RAC.EXE},{$HOST},{$PORT}]'
+          trends: '0'
+          value_type: TEXT
+          applications:
+            -
+              name: 'Проверка кластера 1С'
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  //
+                  value=value.replace(/(^[\w*|-]+) *: "?([\w|-]*)"?\n?/,       '$2');
+                  
+                  return(value);
+                  
+        -
+          name: 'Версия RAC.EXE'
+          key: 'RAC.EXE-version[{$RAC.EXE},{$HOST},{$PORT}]'
+          delay: 1d
+          trends: '0'
+          value_type: TEXT
+          applications:
+            -
+              name: RAC/RAS
+            -
+              name: 'Проверка кластера 1С'
+        -
+          name: 'Версия RAS.EXE'
+          key: 'RAS.EXE-version[{$RAC.EXE},{$HOST},{$PORT}]'
+          delay: 1d
+          trends: '0'
+          value_type: TEXT
+          applications:
+            -
+              name: RAC/RAS
+            -
+              name: 'Проверка кластера 1С'
+      discovery_rules:
+        -
+          name: 'Список баз кластера 1С({#CLUSTER.UUID})'
+          key: '1C-Server-cluster-summary-list[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID}]'
+          lifetime: 90d
+          item_prototypes:
+            -
+              name: Всего
+              type: CALCULATED
+              key: Cluster-1Csession
+              delay: 5m
+              history: 365d
+              params: '100*last("CheckCluster1C:Cluster-1Csession-WebClient[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]")'
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Проверка кластера 1С'
+            -
+              name: 'Тонкие клиенты'
+              key: 'Cluster-1Csession-1CV8C[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              delay: 5m
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Проверка кластера 1С'
+            -
+              name: 'Толстые клиенты'
+              key: 'Cluster-1Csession-1CV8[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              delay: 5m
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Проверка кластера 1С'
+            -
+              name: 'Фоновые задачи'
+              key: 'Cluster-1Csession-BackgroundJob[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              delay: 5m
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Проверка кластера 1С'
+            -
+              name: Конфигуратор
+              key: 'Cluster-1Csession-Designer[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              delay: 5m
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Проверка кластера 1С'
+            -
+              name: Веб-клиент
+              key: 'Cluster-1Csession-WebClient[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              delay: 5m
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Проверка кластера 1С'
+            -
+              name: '{#NAME} - количество пользователей с ненулевым значением "memory-current"'
+              key: 'Cluster-NotNULL-memory-current[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              delay: 2m
+              history: 1d
+              trends: 1d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Проверка кластера 1С'
+              trigger_prototypes:
+                -
+                  expression: '{avg(#30)}>7'
+                  name: 'Cluster-NotNULL-memory-current >7'
+                  event_name: 'Количество пользователей "memory-current"'
+                  priority: INFO
+                  manual_close: 'YES'
+                -
+                  expression: '{avg(#15)}>10'
+                  name: 'Cluster-NotNULL-memory-current >10'
+                  event_name: 'Количество пользователей "memory-current"'
+                  priority: AVERAGE
+                  manual_close: 'YES'
+                -
+                  expression: '{avg(#15)}>20'
+                  name: 'Cluster-NotNULL-memory-current >20'
+                  event_name: 'Количество пользователей "memory-current"'
+                  priority: HIGH
+                  manual_close: 'YES'
+                -
+                  expression: '{avg(#15)}>25'
+                  name: 'Cluster-NotNULL-memory-current >25'
+                  event_name: 'Количество пользователей "memory-current"'
+                  priority: DISASTER
+                  manual_close: 'YES'
+          graph_prototypes:
+            -
+              name: 'Количество сессий в БД "{#NAME}"'
+              graph_items:
+                -
+                  sortorder: '1'
+                  color: A54F10
+                  item:
+                    host: CheckCluster1C
+                    key: 'Cluster-1Csession-1CV8C[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                -
+                  sortorder: '2'
+                  color: F63100
+                  item:
+                    host: CheckCluster1C
+                    key: 'Cluster-1Csession-Designer[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                -
+                  sortorder: '3'
+                  color: FC6EA3
+                  item:
+                    host: CheckCluster1C
+                    key: 'Cluster-1Csession-BackgroundJob[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                -
+                  sortorder: '4'
+                  color: 2774A4
+                  item:
+                    host: CheckCluster1C
+                    key: 'Cluster-1Csession-1CV8[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                -
+                  sortorder: '5'
+                  color: 1A7C11
+                  item:
+                    host: CheckCluster1C
+                    key: 'Cluster-1Csession-WebClient[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                -
+                  sortorder: '6'
+                  color: '000000'
+                  item:
+                    host: CheckCluster1C
+                    key: 'Cluster-NotNULL-memory-current[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+          lld_macro_paths:
+            -
+              lld_macro: '{#DESCR}'
+              path: $.descr
+            -
+              lld_macro: '{#INFOBASE}'
+              path: $.infobase
+            -
+              lld_macro: '{#NAME}'
+              path: $.name
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - return(value);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // заворачиваю в '"' ключ и значение
+                  value=value.replace(/\n*(infobase : )([\w|-]*)/gi, '"infobase":"$2"');
+                  value=value.replace(/\n(name *: )([\w|-]*)/gi,     '"name":"$2"');
+                  value=value.replace(/\n(descr *: )"(.*)"/gi,       '"descr":"$2"');
+                  
+                  return(value);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // добавляем ',' между метаданными описания базы
+                  value= value.replace(/(.*)\r/gi, '$1,') ; 
+                  value= value.replace(/\r({(.*)})/gi, '{$2}') ; 
+                  
+                  
+                  return(value);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // оборачиваем элементы
+                  value= value.replace(/,[\r|\n],/g, '}, {') ; 
+                  // убираем конец строки
+                  value= value.replace(/[\r|\n]/g, '') ; 
+                  
+                  return(value);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // удалить последню','
+                  //value= value.replace(/,$/gi, '') ; 
+                  
+                  return(value);
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  // оборачиваю всё
+                  value= value.replace(/$/gi, '}]}') ; 
+                  value= value.replace(/^/gi, '{	"data": [{') ; 
+                  
+                  return(value);
+        -
+          name: UUID
+          key: 'UUID[{$RAC.EXE},{$HOST},{$PORT}]'
+          status: DISABLED
+          lld_macro_paths:
+            -
+              lld_macro: '{#UUID}'
+              path: $.cluster
+          preprocessing:
+            -
+              type: JAVASCRIPT
+              parameters:
+                - |
+                  value=value.replace(/([\w*| | ]*) : (.*)/,       '"{[{"cluster" : "$2"}]}');
+                  
+                  return(value);
+      macros:
+        -
+          macro: '{$CLUSTER1C.UUID}'
+          value: Ввести UUID кластера 1С - посмотреть можно в данных полученных из кластера.
+          description: 'UUID кластера 1С. Ввести UUID из данных.'
+        -
+          macro: '{$HOST}'
+          value: localhost
+          description: 'Адрес узла на котором работает утилита rac'
+        -
+          macro: '{$PORT}'
+          value: '1545'
+          description: 'Порт на котором работает утилита rac'
+        -
+          macro: '{$RAC.EXE}'
+          value: 'c:\Program Files\1cv8\8.3.17.1989\bin\rac.exe'
+          description: 'Путь к утилите rac'
