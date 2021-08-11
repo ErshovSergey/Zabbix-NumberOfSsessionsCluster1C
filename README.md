@@ -2,5 +2,5 @@
 Количество сессий в базе 1С-Кластер можно получить с помощью службы сервера удаленного администрирования RAS(Remote Aadministration Server).  
 Доступ к RAS можно получить с помощью RAC(Remote Administration Client).
 Т.о. через zabbix агент можно получать данные из кластера 1С - Zabbixagent->RAC->RAS-Cluster1C.  
-Файл для агента zabbix cluster1-base-session.conf - разместить в папке _<FolderZabbixAgent>\zabbix_agentd.conf.d\_.
-Файл шаблона для Zabbix (проверено в версии 5.2).
+Файл для агента [zabbix cluster1-base-session.conf](./zabbix cluster1-base-session.conf) - разместить в папке _<FolderZabbixAgent>\zabbix_agentd.conf.d\_.
+Файл [шаблона](Zabbix-NumberOfSsessionsCluster1C.yaml) для Zabbix (проверено в версии 5.2).
