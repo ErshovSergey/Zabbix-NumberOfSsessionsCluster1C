@@ -20,7 +20,7 @@ net start "1C:Enterprise RAS"
 должны получить примерно следующее
   
 #### Добавить в zabbixagent файл с пользовательскими скриптами????
-- положить файл [cluster1-base-session.conf](./cluster1-base-session.conf) в <Path_to_ZabbixAgent>\zabbix_agentd.conf.d\  
+- положить файл [cluster1-base-session.conf](./cluster1-base-session.conf) в *<Path_to_ZabbixAgent>\zabbix_agentd.conf.d\*  
 - перезапустить zabbixagent  
 #### Добавить и настроить шаблон  
 - к узлу кластера 1С в Zabbix добавить шаблон
