@@ -16,16 +16,16 @@ net start "1C:Enterprise RAS"
 ```
 #### Проверить доступ утилитой RAC  
 На узле с RAS запустив  
-```"C:\Program Files\1cv8\8.3.Х.ХХХХ\bin\rac.exe" cluster list```
-должны получить примерно следующее
-  
-#### Добавить в zabbixagent файл с пользовательскими скриптами????
+```"c:\Program Files\1cv8\8.3.XXX.XXX\bin\rac.exe" cluster list```  
+должны получить примерно следующее  
+```cluster                       : d555dcae-XXX-XXXX-XXXX-XXXXXXXXXX```  
+#### Добавить в zabbixagent файл с пользовательскими скриптами
 - положить файл [cluster1-base-session.conf](./cluster1-base-session.conf) в <Path_to_ZabbixAgent>\zabbix_agentd.conf.d\  
 - перезапустить zabbixagent  
-- проверить работу RAC командой с Zabbix сервера
-```zabbix_get -s 10.10.XXX.XXX -p 10050 -k UUID["c:\Program Files\1cv8\8.3.XXX.XXX\bin\rac.exe","localhost","1545"]```
-Должно получиться что-то типа
-```cluster                       : d555dcae-XXX-XXXX-XXXX-XXXXXXXXXX```
+- проверить работу RAC командой с Zabbix сервера  
+```zabbix_get -s XX.XX.XXX.XXX -p 10050 -k UUID["c:\Program Files\1cv8\8.3.XXX.XXX\bin\rac.exe","localhost","1545"]```  
+Должно получиться что-то типа  
+```cluster                       : d555dcae-XXX-XXXX-XXXX-XXXXXXXXXX```  
 
 #### Добавить и настроить шаблон  
 - к узлу кластера 1С в Zabbix добавить шаблон
