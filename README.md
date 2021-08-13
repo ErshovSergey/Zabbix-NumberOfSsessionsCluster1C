@@ -20,8 +20,13 @@ net start "1C:Enterprise RAS"
 должны получить примерно следующее
   
 #### Добавить в zabbixagent файл с пользовательскими скриптами????
-- положить файл [cluster1-base-session.conf](./cluster1-base-session.conf) в *<Path_to_ZabbixAgent>\zabbix_agentd.conf.d\*  
+- положить файл [cluster1-base-session.conf](./cluster1-base-session.conf) в <Path_to_ZabbixAgent>\zabbix_agentd.conf.d\  
 - перезапустить zabbixagent  
+- проверить работу RAC командой с Zabbix сервера
+```zabbix_get -s 10.10.XXX.XXX -p 10050 -k UUID["c:\Program Files\1cv8\8.3.XXX.XXX\bin\rac.exe","localhost","1545"]```
+Должно получиться что-то типа
+```cluster                       : d555dcae-XXX-XXXX-XXXX-XXXXXXXXXX```
+
 #### Добавить и настроить шаблон  
 - к узлу кластера 1С в Zabbix добавить шаблон
 - проверить путь до RAC - макросы {$HOST}, {$PORT}, {$RAC.EXE}
@@ -30,5 +35,5 @@ net start "1C:Enterprise RAS"
 ### To-Do
 - вероятно всё это заработает на \*NIX системах - требуется проверить
 - вынести пороги триггеров в макросы - пока не понадобилось
-- настроить пороги триггеров
+- настроить пороги триггеров через макросы
   
