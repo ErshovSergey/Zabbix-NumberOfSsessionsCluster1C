@@ -1,6 +1,6 @@
 zabbix_export:
   version: '5.2'
-  date: '2021-08-11T13:42:45Z'
+  date: '2021-08-13T06:40:23Z'
   groups:
     -
       name: Servers1C
@@ -27,6 +27,7 @@ zabbix_export:
         -
           name: CLUSTER1C.UUID
           key: 'CLUSTER1C.UUID[{$RAC.EXE},{$HOST},{$PORT}]'
+          delay: 1d
           trends: '0'
           value_type: TEXT
           applications:
@@ -68,6 +69,7 @@ zabbix_export:
         -
           name: 'Список баз кластера 1С({#CLUSTER.UUID})'
           key: '1C-Server-cluster-summary-list[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID}]'
+          delay: 120m
           lifetime: 90d
           item_prototypes:
             -
@@ -263,26 +265,10 @@ zabbix_export:
                   value= value.replace(/^/gi, '{	"data": [{') ; 
                   
                   return(value);
-        -
-          name: UUID
-          key: 'UUID[{$RAC.EXE},{$HOST},{$PORT}]'
-          status: DISABLED
-          lld_macro_paths:
-            -
-              lld_macro: '{#UUID}'
-              path: $.cluster
-          preprocessing:
-            -
-              type: JAVASCRIPT
-              parameters:
-                - |
-                  value=value.replace(/([\w*| | ]*) : (.*)/,       '"{[{"cluster" : "$2"}]}');
-                  
-                  return(value);
       macros:
         -
           macro: '{$CLUSTER1C.UUID}'
-          value: Ввести UUID кластера 1С - посмотреть можно в данных полученных из кластера.
+          value: 'Пустое значение'
           description: 'UUID кластера 1С. Ввести UUID из данных.'
         -
           macro: '{$HOST}'
