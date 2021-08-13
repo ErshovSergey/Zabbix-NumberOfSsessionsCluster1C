@@ -3,7 +3,7 @@
 Доступ к RAS можно получить с помощью RAC(Remote Administration Client).  
 Т.о. через zabbix агент можно получать данные из кластера 1С  
     Zabbixagent<-->RAC<-->RAS<-->Cluster1C.  
-Файл для агента [zabbix cluster1-base-session.conf](./zabbix-cluster1-base-session.conf) - разместить в папке ```<FolderZabbixAgent>\zabbix_agentd.conf.d\```.  
+Файл для агента [cluster1-base-session.conf](./cluster1-base-session.conf) - разместить в папке ```<FolderZabbixAgent>\zabbix_agentd.conf.d\```.  
 Файл [шаблона](./Zabbix-NumberOfSsessionsCluster1C.yaml) для Zabbix (проверено в версии 5.2).  
   
 ### Порядок работ
@@ -20,7 +20,8 @@ net start "1C:Enterprise RAS"
 должны получить примерно следующее
   
 #### Добавить в zabbixagent файл с пользовательскими скриптами????
-положить файл [zabbix cluster1-base-session.conf](./zabbix cluster1-base-session.conf) в 
+- положить файл [cluster1-base-session.conf](./cluster1-base-session.conf) в <Path_to_ZabbixAgent>\zabbix_agentd.conf.d\  
+- перезапустить zabbixagent  
 #### Добавить шаблон
 #### Настроить шаблон
 - указать верный путь до rac.
