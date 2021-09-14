@@ -1,26 +1,38 @@
 zabbix_export:
   version: '5.2'
-  date: '2021-08-13T06:40:23Z'
+  date: '2021-09-14T12:40:46Z'
   groups:
     -
       name: Servers1C
   templates:
     -
-      template: CheckCluster1C
-      name: 'Проверка кластера 1С'
+      template: 'Number of sessions in 1C cluster'
+      name: 'Количество сессий в БД  кластера 1С'
       description: |
-        Проверка параметров кластера 1С с помощью запросов к серверу администрирования 1С (RAS/RAC).
+        Мониторинг количества сессий в кластере 1С с использованием запросов к серверу администрирования 1С (RAS/RAC).
+        Проверено на Windows/1C:8.3.
+        Возможно будет работать на Linux.
         
-        Проверка происходит через утилиту удаленного управления rac.exe.
+        Шаблон определяет UUID кластера 1С, автоматически обнаруживает БД в кластере 1С и строит графики количества сессий в каждой БД.
+        Также мониторится количество сессий с ненулевым параметром memory-current - косвенно позволяет оценить загруженность кластера. Пороги триггеров задаются макросами.
+        
+        Мониторинг происходит через запуск утилиты удаленного управления rac.exe агентом zabbix.
+        
         Необходимо проверить макросы:
         - {$RAC.EXE} - путь к утилите на сервере. Версия утилиты должны соответствовать службы ras.exe, версия которой должно соответствовать версии сервера 1С.
         - {$HOST} и {$PORT} - адрес хоста и порт на котором работает утилита.
+        
+        
+        Актуальная версия на 
+        https://github.com/ErshovSergey/Zabbix-NumberOfSsessionsCluster1C
       groups:
         -
           name: Servers1C
       applications:
         -
           name: RAC/RAS
+        -
+          name: 'Количество сессий'
         -
           name: 'Проверка кластера 1С'
       items:
@@ -31,6 +43,8 @@ zabbix_export:
           trends: '0'
           value_type: TEXT
           applications:
+            -
+              name: RAC/RAS
             -
               name: 'Проверка кластера 1С'
           preprocessing:
@@ -68,141 +82,288 @@ zabbix_export:
       discovery_rules:
         -
           name: 'Список баз кластера 1С({#CLUSTER.UUID})'
-          key: '1C-Server-cluster-summary-list[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID}]'
-          delay: 120m
+          key: '1C-Server-cluster-summary-list[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
           lifetime: 90d
           item_prototypes:
             -
-              name: Всего
-              type: CALCULATED
-              key: Cluster-1Csession
-              delay: 5m
-              history: 365d
-              params: '100*last("CheckCluster1C:Cluster-1Csession-WebClient[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]")'
-              description: 'Количество сессий на сервере 1С.'
+              name: 'Список сесиий базы {#NAME}]'
+              key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              history: 10d
+              trends: '0'
+              value_type: TEXT
+              description: |
+                Общее количество сессий на сервере 1С.
+                Из него получаем более детально.
               applications:
                 -
-                  name: 'Проверка кластера 1С'
+                  name: 'Количество сессий'
             -
               name: 'Тонкие клиенты'
-              key: 'Cluster-1Csession-1CV8C[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
-              delay: 5m
+              type: DEPENDENT
+              key: '1CV8C[{#NAME}]'
+              delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
               applications:
                 -
-                  name: 'Проверка кластера 1С'
+                  name: 'Количество сессий'
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий 1CV8C
+                      const regEx = /app-id[ ]*(: ).*1CV8C[\n\r]/g;
+                      return (value.match(regEx) || []).length;
+                      
+                      
+                      //var count = (value.match(/app-id[ ]*(: ).*1CV8C[\n\r]/g) || []).length;
+                      //return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
             -
               name: 'Толстые клиенты'
-              key: 'Cluster-1Csession-1CV8[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
-              delay: 5m
+              type: DEPENDENT
+              key: '1CV8[{#NAME}]'
+              delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
               applications:
                 -
-                  name: 'Проверка кластера 1С'
+                  name: 'Количество сессий'
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий 1CV8
+                      const regEx = /(app-id)[[:space:]]*: 1CV8[\n\r]/g;
+                      return (value.match(regEx) || []).length;
+                      
+                      //var count = (value.match(/(app-id)[[:space:]]*: 1CV8[\n\r]/g) || []).length;
+                      //var count = (value.match(/app-id[ ]*(: ).*1CV8[\n\r]/g) || []).length;
+                      //return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+            -
+              name: Всего
+              type: DEPENDENT
+              key: 'ALL[{#NAME}]'
+              delay: '0'
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Количество сессий'
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий всего
+                      const regEx = /app-id[ ]*(: ).*[\n\r]/g;
+                      return (value.match(regEx) || []).length;
+                      
+                      
+                      //var count = (value.match(/app-id[ ]*(: ).*[\n\r]/g) || []).length;
+                      //return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
             -
               name: 'Фоновые задачи'
-              key: 'Cluster-1Csession-BackgroundJob[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
-              delay: 5m
+              type: DEPENDENT
+              key: 'BackgroundJob[{#NAME}]'
+              delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
               applications:
                 -
-                  name: 'Проверка кластера 1С'
+                  name: 'Количество сессий'
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий BackgroundJob
+                      const regEx = /app-id[ ]*(: ).*BackgroundJob[\n\r]/g;
+                      return (value.match(regEx) || []).length;
+                      
+                      
+                      //var count = (value.match(/app-id[ ]*(: ).*BackgroundJob[\n\r]/g) || []).length;
+                      //return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
             -
               name: Конфигуратор
-              key: 'Cluster-1Csession-Designer[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
-              delay: 5m
+              type: DEPENDENT
+              key: 'Designer[{#NAME}]'
+              delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
               applications:
                 -
-                  name: 'Проверка кластера 1С'
+                  name: 'Количество сессий'
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий Designer
+                      const regEx = /app-id[ ]*(: ).*Designer[\n\r]/g;
+                      return (value.match(regEx) || []).length;
+                      
+                      
+                      //var count = (value.match(/app-id[ ]*(: ).*Designer[\n\r]/g) || []).length;
+                      //return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
             -
-              name: Веб-клиент
-              key: 'Cluster-1Csession-WebClient[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
-              delay: 5m
+              name: 'Количество пользователей с ненулевым значением "memory-current"'
+              type: DEPENDENT
+              key: 'memory-current[{#NAME}]'
+              delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
               applications:
                 -
-                  name: 'Проверка кластера 1С'
-            -
-              name: '{#NAME} - количество пользователей с ненулевым значением "memory-current"'
-              key: 'Cluster-NotNULL-memory-current[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
-              delay: 2m
-              history: 1d
-              trends: 1d
-              description: 'Количество сессий на сервере 1С.'
-              applications:
+                  name: 'Количество сессий'
+              preprocessing:
                 -
-                  name: 'Проверка кластера 1С'
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий с ненулевым значением memory-current
+                      const regEx = /memory-current *(: [1-9][\n\r])|(: \d{3,}[\n\r])/g;
+                      var count = (value.match(regEx) || []).length;
+                      return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
               trigger_prototypes:
                 -
-                  expression: '{avg(#30)}>7'
-                  name: 'Cluster-NotNULL-memory-current >7'
-                  event_name: 'Количество пользователей "memory-current"'
-                  priority: INFO
-                  manual_close: 'YES'
-                -
-                  expression: '{avg(#15)}>10'
-                  name: 'Cluster-NotNULL-memory-current >10'
-                  event_name: 'Количество пользователей "memory-current"'
-                  priority: AVERAGE
-                  manual_close: 'YES'
-                -
-                  expression: '{avg(#15)}>20'
-                  name: 'Cluster-NotNULL-memory-current >20'
-                  event_name: 'Количество пользователей "memory-current"'
+                  expression: '{avg(#15)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.HIGH}'
+                  name: 'Cluster-NotNULL-memory-current -HIGH'
+                  event_name: 'Количество пользователей "memory-current"(in 15min)'
                   priority: HIGH
                   manual_close: 'YES'
                 -
-                  expression: '{avg(#15)}>25'
-                  name: 'Cluster-NotNULL-memory-current >25'
-                  event_name: 'Количество пользователей "memory-current"'
+                  expression: '{avg(#30)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.INFO}'
+                  name: 'Cluster-NotNULL-memory-current - INFO'
+                  event_name: 'Количество пользователей "memory-current"(in 15min)'
+                  priority: INFO
+                  manual_close: 'YES'
+                -
+                  expression: '{avg(#15)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.MIDLE}'
+                  name: 'Cluster-NotNULL-memory-current -MIDLE'
+                  event_name: 'Количество пользователей "memory-current"(in 15min)'
+                  priority: AVERAGE
+                  manual_close: 'YES'
+                -
+                  expression: '{avg(#15)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.CRITICAL}'
+                  name: 'Cluster-NotNULL-memory-current CRITICAL'
+                  event_name: 'Количество пользователей "memory-current"(in 15min)'
                   priority: DISASTER
                   manual_close: 'YES'
+            -
+              name: 'Консоль сервера кластера'
+              type: DEPENDENT
+              key: 'SrvrConsole[{#NAME}]'
+              delay: '0'
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Количество сессий'
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий всего
+                      const regEx = /app-id[ ]*(: ).*SrvrConsole[\n\r]/g;
+                      return (value.match(regEx) || []).length;
+                      
+                      
+                      //var count = (value.match(/app-id[ ]*(: ).*SrvrConsole[\n\r]/g) || []).length;
+                      //return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+            -
+              name: Веб-клиент
+              type: DEPENDENT
+              key: 'WebClient[{#NAME}]'
+              delay: '0'
+              history: 365d
+              description: 'Количество сессий на сервере 1С.'
+              applications:
+                -
+                  name: 'Количество сессий'
+              preprocessing:
+                -
+                  type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // количество сессий WebClient
+                      const regEx = /app-id[ ]*(: ).*WebClient[\n\r]/g;
+                      var count = (value.match(regEx) || []).length;
+                      
+                      //var count = (value.match(/app-id[ ]*(: ).*WebClient[\n\r]/g) || []).length;
+                      
+                      return (count);
+              master_item:
+                key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
           graph_prototypes:
             -
               name: 'Количество сессий в БД "{#NAME}"'
+              ymin_type_1: FIXED
               graph_items:
                 -
                   sortorder: '1'
-                  color: A54F10
+                  color: 4A148C
                   item:
-                    host: CheckCluster1C
-                    key: 'Cluster-1Csession-1CV8C[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                    host: 'Number of sessions in 1C cluster'
+                    key: 'ALL[{#NAME}]'
                 -
                   sortorder: '2'
-                  color: F63100
+                  color: A54F10
                   item:
-                    host: CheckCluster1C
-                    key: 'Cluster-1Csession-Designer[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                    host: 'Number of sessions in 1C cluster'
+                    key: '1CV8C[{#NAME}]'
                 -
                   sortorder: '3'
-                  color: FC6EA3
+                  color: F63100
                   item:
-                    host: CheckCluster1C
-                    key: 'Cluster-1Csession-BackgroundJob[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                    host: 'Number of sessions in 1C cluster'
+                    key: 'Designer[{#NAME}]'
                 -
                   sortorder: '4'
                   color: 2774A4
                   item:
-                    host: CheckCluster1C
-                    key: 'Cluster-1Csession-1CV8[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                    host: 'Number of sessions in 1C cluster'
+                    key: '1CV8[{#NAME}]'
                 -
                   sortorder: '5'
-                  color: 1A7C11
+                  color: FC6EA3
                   item:
-                    host: CheckCluster1C
-                    key: 'Cluster-1Csession-WebClient[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                    host: 'Number of sessions in 1C cluster'
+                    key: 'BackgroundJob[{#NAME}]'
                 -
                   sortorder: '6'
+                  color: 611F27
+                  item:
+                    host: 'Number of sessions in 1C cluster'
+                    key: 'SrvrConsole[{#NAME}]'
+                -
+                  sortorder: '7'
+                  color: 1A7C11
+                  item:
+                    host: 'Number of sessions in 1C cluster'
+                    key: 'WebClient[{#NAME}]'
+                -
+                  sortorder: '8'
                   color: '000000'
                   item:
-                    host: CheckCluster1C
-                    key: 'Cluster-NotNULL-memory-current[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+                    host: 'Number of sessions in 1C cluster'
+                    key: 'memory-current[{#NAME}]'
           lld_macro_paths:
             -
               lld_macro: '{#DESCR}'
@@ -266,6 +427,22 @@ zabbix_export:
                   
                   return(value);
       macros:
+        -
+          macro: '{$CLUSTER.NOTNULL.MEMORYCURRENT.CRITICAL}'
+          value: '25'
+          description: 'Триггер события NOTNULL.MEMORYCURRENT.CRITICAL'
+        -
+          macro: '{$CLUSTER.NOTNULL.MEMORYCURRENT.HIGH}'
+          value: '20'
+          description: 'Триггер события NOTNULL.MEMORYCURRENT.HIGH'
+        -
+          macro: '{$CLUSTER.NOTNULL.MEMORYCURRENT.INFO}'
+          value: '7'
+          description: 'Триггер события NOTNULL.MEMORYCURRENT.INFO'
+        -
+          macro: '{$CLUSTER.NOTNULL.MEMORYCURRENT.MIDLE}'
+          value: '10'
+          description: 'Триггер события NOTNULL.MEMORYCURRENT.MIDLE'
         -
           macro: '{$CLUSTER1C.UUID}'
           value: 'Пустое значение'
