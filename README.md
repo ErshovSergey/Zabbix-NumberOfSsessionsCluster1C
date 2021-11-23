@@ -42,7 +42,7 @@ net start "1C:Enterprise RAS"
 - положить файл [cluster1-base-session.conf](./cluster1-base-session.conf) в <Path_to_ZabbixAgent>\zabbix_agentd.conf.d\  
 - перезапустить zabbixagent  
 #### Проверить работу агента zabbix командой с Zabbix сервера(адрес и порт заменить своими)  
-```zabbix_get -s XX.XX.XXX.XXX -p 10050 -k UUID["c:\Program Files\1cv8\8.3.XXX.XXX\bin\rac.exe","localhost","1545"]```  
+```zabbix_get -s XX.XX.XXX.XXX -p 10050 -k CLUSTER1C.UUID["c:\Program Files\1cv8\8.3.XXX.XXX\bin\rac.exe","localhost","1545"]```  
 результат должен быть примерно таким  
 ```cluster                       : d555dcae-XXX-XXXX-XXXX-XXXXXXXXXX```  
 #### Добавить и настроить шаблон  
