@@ -1,11 +1,13 @@
 zabbix_export:
-  version: '5.2'
-  date: '2021-09-14T12:40:46Z'
+  version: '5.4'
+  date: '2021-11-24T10:27:18Z'
   groups:
     -
+      uuid: a5db0bc46f464973aab382de0eaddf4d
       name: Servers1C
   templates:
     -
+      uuid: 55b49df79d9d400789bd482141ed39fd
       template: 'Number of sessions in 1C cluster'
       name: 'Количество сессий в БД  кластера 1С'
       description: |
@@ -28,25 +30,14 @@ zabbix_export:
       groups:
         -
           name: Servers1C
-      applications:
-        -
-          name: RAC/RAS
-        -
-          name: 'Количество сессий'
-        -
-          name: 'Проверка кластера 1С'
       items:
         -
+          uuid: 827bb84de8db49a0be3019f916c6f29a
           name: CLUSTER1C.UUID
           key: 'CLUSTER1C.UUID[{$RAC.EXE},{$HOST},{$PORT}]'
           delay: 1d
           trends: '0'
           value_type: TEXT
-          applications:
-            -
-              name: RAC/RAS
-            -
-              name: 'Проверка кластера 1С'
           preprocessing:
             -
               type: JAVASCRIPT
@@ -56,36 +47,50 @@ zabbix_export:
                   value=value.replace(/(^[\w*|-]+) *: "?([\w|-]*)"?\n?/,       '$2');
                   
                   return(value);
-                  
+          tags:
+            -
+              tag: Application
+              value: RAC/RAS
+            -
+              tag: Application
+              value: 'Проверка кластера 1С'
         -
+          uuid: e317742c30104483b095a30785dc841e
           name: 'Версия RAC.EXE'
           key: 'RAC.EXE-version[{$RAC.EXE},{$HOST},{$PORT}]'
           delay: 1d
           trends: '0'
           value_type: TEXT
-          applications:
+          tags:
             -
-              name: RAC/RAS
+              tag: Application
+              value: RAC/RAS
             -
-              name: 'Проверка кластера 1С'
+              tag: Application
+              value: 'Проверка кластера 1С'
         -
+          uuid: 7014f4d568674942971f22d1694b8e3f
           name: 'Версия RAS.EXE'
           key: 'RAS.EXE-version[{$RAC.EXE},{$HOST},{$PORT}]'
           delay: 1d
           trends: '0'
           value_type: TEXT
-          applications:
+          tags:
             -
-              name: RAC/RAS
+              tag: Application
+              value: RAC/RAS
             -
-              name: 'Проверка кластера 1С'
+              tag: Application
+              value: 'Проверка кластера 1С'
       discovery_rules:
         -
+          uuid: ffc690deedd64165bf366767e6649047
           name: 'Список баз кластера 1С({#CLUSTER.UUID})'
           key: '1C-Server-cluster-summary-list[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
           lifetime: 90d
           item_prototypes:
             -
+              uuid: 7b198b1df8b748dea13635ae1dbb46e1
               name: 'Список сесиий базы {#NAME}]'
               key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
               history: 10d
@@ -94,19 +99,18 @@ zabbix_export:
               description: |
                 Общее количество сессий на сервере 1С.
                 Из него получаем более детально.
-              applications:
+              tags:
                 -
-                  name: 'Количество сессий'
+                  tag: Application
+                  value: 'Количество сессий'
             -
+              uuid: d5e4d000b38d47c68f4e11d8f0b4160e
               name: 'Тонкие клиенты'
               type: DEPENDENT
               key: '1CV8C[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -121,16 +125,18 @@ zabbix_export:
                       //return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
             -
+              uuid: 5a8968fe13944776b5b89d42bc3b071a
               name: 'Толстые клиенты'
               type: DEPENDENT
               key: '1CV8[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -145,16 +151,18 @@ zabbix_export:
                       //return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
             -
+              uuid: 30e0d96592614ac6aba073dd19bea58f
               name: Всего
               type: DEPENDENT
               key: 'ALL[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -169,16 +177,18 @@ zabbix_export:
                       //return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
             -
+              uuid: b3e049ccf523411ba68e633a64ba495d
               name: 'Фоновые задачи'
               type: DEPENDENT
               key: 'BackgroundJob[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -193,16 +203,18 @@ zabbix_export:
                       //return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
             -
+              uuid: a5d411954555489a95866007e33cf838
               name: Конфигуратор
               type: DEPENDENT
               key: 'Designer[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -217,16 +229,18 @@ zabbix_export:
                       //return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
             -
+              uuid: a068e09ad3554ff388d2a805c40938be
               name: 'Количество пользователей с ненулевым значением "memory-current"'
               type: DEPENDENT
               key: 'memory-current[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -238,41 +252,59 @@ zabbix_export:
                       return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
               trigger_prototypes:
                 -
-                  expression: '{avg(#15)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.HIGH}'
+                  uuid: 898c105a816c4dad82369733c9fbf85d
+                  expression: 'avg(/Number of sessions in 1C cluster/memory-current[{#NAME}],#15)>{$CLUSTER.NOTNULL.MEMORYCURRENT.HIGH}'
                   name: 'Cluster-NotNULL-memory-current -HIGH'
-                  event_name: 'Количество пользователей "memory-current"(in 15min)'
+                  event_name: 'Количество пользователей "memory-current"(in 15min) cluster/memory-current[{#NAME}],#15)  (Current:{ITEM.LASTVALUE})'
                   priority: HIGH
                   manual_close: 'YES'
+                  dependencies:
+                    -
+                      name: 'Cluster-NotNULL-memory-current -MIDLE'
+                      expression: 'avg(/Number of sessions in 1C cluster/memory-current[{#NAME}],#15)>{$CLUSTER.NOTNULL.MEMORYCURRENT.MIDLE}'
                 -
-                  expression: '{avg(#30)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.INFO}'
+                  uuid: fd074e5d7598435da3a390bf9397b777
+                  expression: 'avg(/Number of sessions in 1C cluster/memory-current[{#NAME}],#30)>{$CLUSTER.NOTNULL.MEMORYCURRENT.INFO}'
                   name: 'Cluster-NotNULL-memory-current - INFO'
-                  event_name: 'Количество пользователей "memory-current"(in 15min)'
+                  event_name: 'Количество пользователей "memory-current"(in 15min)  (Current:{ITEM.LASTVALUE})'
                   priority: INFO
                   manual_close: 'YES'
                 -
-                  expression: '{avg(#15)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.MIDLE}'
+                  uuid: 4bb7d3b57001493e9c5171c19d7eccf2
+                  expression: 'avg(/Number of sessions in 1C cluster/memory-current[{#NAME}],#15)>{$CLUSTER.NOTNULL.MEMORYCURRENT.MIDLE}'
                   name: 'Cluster-NotNULL-memory-current -MIDLE'
-                  event_name: 'Количество пользователей "memory-current"(in 15min)'
+                  event_name: 'Количество пользователей "memory-current"(in 15min)  (Current:{ITEM.LASTVALUE})'
                   priority: AVERAGE
                   manual_close: 'YES'
+                  dependencies:
+                    -
+                      name: 'Cluster-NotNULL-memory-current - INFO'
+                      expression: 'avg(/Number of sessions in 1C cluster/memory-current[{#NAME}],#30)>{$CLUSTER.NOTNULL.MEMORYCURRENT.INFO}'
                 -
-                  expression: '{avg(#15)}>{$CLUSTER.NOTNULL.MEMORYCURRENT.CRITICAL}'
+                  uuid: 090a280cd07c44769530fecc9c0d06c6
+                  expression: 'avg(/Number of sessions in 1C cluster/memory-current[{#NAME}],#15)>{$CLUSTER.NOTNULL.MEMORYCURRENT.CRITICAL}'
                   name: 'Cluster-NotNULL-memory-current CRITICAL'
-                  event_name: 'Количество пользователей "memory-current"(in 15min)'
+                  event_name: 'Количество пользователей "memory-current"(in 15min)  (Current:{ITEM.LASTVALUE})'
                   priority: DISASTER
                   manual_close: 'YES'
+                  dependencies:
+                    -
+                      name: 'Cluster-NotNULL-memory-current -HIGH'
+                      expression: 'avg(/Number of sessions in 1C cluster/memory-current[{#NAME}],#15)>{$CLUSTER.NOTNULL.MEMORYCURRENT.HIGH}'
             -
+              uuid: 58e06b37165d441eb929ddc30bee3e53
               name: 'Консоль сервера кластера'
               type: DEPENDENT
               key: 'SrvrConsole[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -287,16 +319,18 @@ zabbix_export:
                       //return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
             -
+              uuid: 6a16d7f987af4412a0841092ecf641ca
               name: Веб-клиент
               type: DEPENDENT
               key: 'WebClient[{#NAME}]'
               delay: '0'
               history: 365d
               description: 'Количество сессий на сервере 1С.'
-              applications:
-                -
-                  name: 'Количество сессий'
               preprocessing:
                 -
                   type: JAVASCRIPT
@@ -311,44 +345,49 @@ zabbix_export:
                       return (count);
               master_item:
                 key: '1Csession-List[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{#INFOBASE}]'
+              tags:
+                -
+                  tag: Application
+                  value: 'Количество сессий'
           graph_prototypes:
             -
+              uuid: e8df836cf5ec4918b7b1e1daa067fb8e
               name: 'Количество сессий в БД "{#NAME}"'
               ymin_type_1: FIXED
               graph_items:
                 -
                   sortorder: '1'
-                  color: 4A148C
+                  color: FF0000
                   item:
                     host: 'Number of sessions in 1C cluster'
                     key: 'ALL[{#NAME}]'
                 -
                   sortorder: '2'
-                  color: A54F10
+                  color: 4000FF
                   item:
                     host: 'Number of sessions in 1C cluster'
                     key: '1CV8C[{#NAME}]'
                 -
                   sortorder: '3'
-                  color: F63100
+                  color: FFBF00
                   item:
                     host: 'Number of sessions in 1C cluster'
                     key: 'Designer[{#NAME}]'
                 -
                   sortorder: '4'
-                  color: 2774A4
+                  color: '009688'
                   item:
                     host: 'Number of sessions in 1C cluster'
                     key: '1CV8[{#NAME}]'
                 -
                   sortorder: '5'
-                  color: FC6EA3
+                  color: BF00FF
                   item:
                     host: 'Number of sessions in 1C cluster'
                     key: 'BackgroundJob[{#NAME}]'
                 -
                   sortorder: '6'
-                  color: 611F27
+                  color: C2185B
                   item:
                     host: 'Number of sessions in 1C cluster'
                     key: 'SrvrConsole[{#NAME}]'
@@ -360,6 +399,7 @@ zabbix_export:
                     key: 'WebClient[{#NAME}]'
                 -
                   sortorder: '8'
+                  drawtype: GRADIENT_LINE
                   color: '000000'
                   item:
                     host: 'Number of sessions in 1C cluster'
@@ -386,7 +426,8 @@ zabbix_export:
                   // заворачиваю в '"' ключ и значение
                   value=value.replace(/\n*(infobase : )([\w|-]*)/gi, '"infobase":"$2"');
                   value=value.replace(/\n(name *: )([\w|-]*)/gi,     '"name":"$2"');
-                  value=value.replace(/\n(descr *: )"(.*)"/gi,       '"descr":"$2"');
+                  value=value.replace(/\n(descr *: )"(.+)"/gi,       '"descr":"$2"');
+                  value=value.replace(/(descr *:)$/gi,       '"descr2":"no description"');
                   
                   return(value);
             -
