@@ -1,0 +1,781 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: a5db0bc46f464973aab382de0eaddf4d
+      name: KSPD/Servers/1C
+  templates:
+    - uuid: 55b49df79d9d400789bd482141ed39fd
+      template: 'Number of 1C cluster user sessions by database'
+      name: 'Количество сессий пользователей кластера 1С'
+      description: |
+        Мониторинг количества сессий в кластере 1С с использованием запросов к серверу администрирования 1С (RAS/RAC).
+        Проверено на Windows/1C:8.3.
+        Возможно будет работать на Linux.
+        
+        Для работы необходимо через макросы определить:
+        - UUID кластера 1С (значение из консоли кластера 1С)
+        - {$RAC.EXE} - путь к утилите на сервере. Версия утилиты должны соответствовать службы ras.exe, версия которой должно соответствовать версии сервера 1С.
+        - {$HOST} и {$PORT} - адрес хоста и порт на котором работает утилита.
+        
+        Также мониторится количество сессий с ненулевым параметром memory-current - косвенно позволяет оценить загруженность кластера. Пороги триггеров задаются макросами.
+        
+        Мониторинг происходит через запуск утилиты удаленного управления rac.exe агентом zabbix.
+        
+        Актуальная версия на 
+        https://github.com/ErshovSergey/Zabbix-NumberOfSsessionsCluster1C
+      groups:
+        - name: KSPD/Servers/1C
+      items:
+        - uuid: d32bc774eccb40a2935b1b27c1e96e1a
+          name: 'Список баз кластера 1С({#CLUSTER.UUID}) - обнаружение БАЗ'
+          key: 'CLUSTER1C.GET.LIST.BASES[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD},{#INFOBASE}]'
+          delay: 60m
+          history: 90d
+          value_type: TEXT
+          trends: '0'
+          status: DISABLED
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // заворачиваю в '"' ключ и значение
+                  value=value.replace(/\n*(infobase : )([\w|-]*)/gi, '"infobase":"$2"');
+                  value=value.replace(/\n(name *: )([\w|-]*)/gi,     '"name":"$2"');
+                  value=value.replace(/\n(descr *: )"(.*)"/gi,       '"descr":"$2"');
+                  
+                  return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // добавляем ',' между метаданными описания базы
+                  value= value.replace(/(.*)\r/gi, '$1,') ; 
+                  value= value.replace(/\r({(.*)})/gi, '{$2}') ; 
+                  
+                  
+                  return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // оборачиваем элементы
+                  value= value.replace(/,[\r|\n],/g, '}, {') ; 
+                  // убираем конец строки
+                  value= value.replace(/[\r|\n]/g, '') ; 
+                  
+                  return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // удалить последню','
+                  //value= value.replace(/,$/gi, '') ; 
+                  
+                  return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // оборачиваю всё
+                  value= value.replace(/$/gi, '}]}') ; 
+                  value= value.replace(/^/gi, '{	"data": [{') ; 
+                  
+                  return(value);
+          tags:
+            - tag: 'Кластер 1С'
+        - uuid: 6a1495993785497e9fdce6c3ce3a0d62
+          name: 'Список ВСЕХ сессий кластера 1С'
+          key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+          history: 10d
+          value_type: TEXT
+          trends: '0'
+          description: 'docker exec -u 0 -i -t Zabbix7.LTS_zabbix-server zabbix_get -s 10.10.2.16 -p 10050 -k CLUSTER1C.GET.LIST.SESSION["C:\Program Files\1cv8\8.3.25.1394\bin\rac.exe","localhost","1545","8e7c41eb-3480-462c-84c6-3d7fd7b93cd7","Administrator","Eeweqe8SD"]'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // заворачиваю в '"' ключ и значение
+                  value=value.replace(/([(\wа-яА-Я-]*)( *: *)([(.\wа-яА-ЯёЁ -]*)/gi,     '"$1":"$3"');
+                  
+                  return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // добавляем ',' между метаданными описания базы
+                  
+                  value= value.replace(/((.*):(\w|.*|[а-яА-ЯёЁ]))/gi, '$1,');
+                  
+                  value= value.replace(/,\r\n("session")/gi, '},\n{"session"');
+                  
+                  return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  value= value.replace(/[\r|\n]/g, '') ; 
+                  value= value.replace(/,$/g, '') ; 
+                  
+                  return(value);
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // оборачиваю всё
+                  value= value.replace(/$/gi, '}]}') ; 
+                  value= value.replace(/^/gi, '{"data": [{') ; 
+                  
+                  return(value);
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Список ВСЕХ сессий баз кластера.'
+          triggers:
+            - uuid: 19e4a22538514a9d8635be2e6aaf7831
+              expression: 'last(/Number of 1C cluster user sessions by database/CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}])="{\"data\": [{Администратор кластера не аутентифицирован}]}"'
+              name: CLUSTER.ADMIN.NOT.AUTHENTICATED
+              event_name: 'Пользователь кластера ("{$CLUSTER1C.USER}") не аутентифицирован. Логин/пароль не подходят для авторизации в кластере 1С - данные по сессиям не собираются.'
+              opdata: '{ITEM.LASTVALUE}'
+              description: 'Логин/пароль не подходят для авторизации в кластере 1С - данные не собираются.'
+              manual_close: 'YES'
+        - uuid: 827bb84de8db49a0be3019f916c6f29a
+          name: CLUSTER1C.UUID
+          key: 'CLUSTER1C.GET.UUID[{$RAC.EXE},{$HOST},{$PORT}]'
+          history: 90d
+          value_type: TEXT
+          trends: '0'
+          description: 'Получить UUID кластера 1С'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  //
+                  value=value.replace(/(^[\w*|-]+) *: "?([\w|-]*)"?\n?/,       '$2');
+                  
+                  // [{"foo":"bar"}, {"foo":"baz"}]
+                  value='[{'+"UUID:"+ value+"}]";
+                  
+                  return(value);
+          tags:
+            - tag: 'Кластер 1С'
+          triggers:
+            - uuid: 5ac3d2ec1191461ebf4e5b534ca7c1ba
+              expression: 'last(/Number of 1C cluster user sessions by database/CLUSTER1C.GET.UUID[{$RAC.EXE},{$HOST},{$PORT}],#1)<>"[{UUID:{$CLUSTER1C.UUID}}]"'
+              name: 'Not match "UID Claster1C" and "UID macros"'
+              event_name: 'UID кластера 1С не совпадает с UID сервера 1С (необходимо указать "{ITEM.LASTVALUE}" в макрос узла CLUSTER1C.UUID.  (текущее значение "{$CLUSTER1C.UUID}".) Данные из кластера не поступают.'
+              priority: AVERAGE
+              description: |
+                Данные из кластера не поступают.
+                Необходимо ввести корректный UID кластера 1С в значение макроса CLUSTER1C.UUID узла.
+              manual_close: 'YES'
+        - uuid: ec44c2c046894602995b3f8c90be2409
+          name: 'Количество "ТОЛСТЫХ" сессий кластера (app-id=1CV8)'
+          type: DEPENDENT
+          key: CLUSTER1C.NUMBER.SESSION.1CV8
+          delay: '0'
+          history: 365d
+          trends: '0'
+          description: 'Количество сессий с толстого клиента.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // подсчет количества элементов
+                  // ключ
+                  var key="app-id";
+                  // значение ключа
+                  var value_key="1CV8";
+                  
+                  var obj=JSON.parse(value).data; 
+                  
+                  var count=0;
+                  for (var element in obj) {
+                      var entry = obj[element ];
+                      if (entry[key] === value_key) {count++}
+                  }
+                  return count;
+                  
+          master_item:
+            key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Количество сессий кластера 1С'
+        - uuid: 10206526b2a340029d323f39f13e0f82
+          name: 'Количество "ТОНКИХ" сессий кластера (app-id=1CV8C)'
+          type: DEPENDENT
+          key: CLUSTER1C.NUMBER.SESSION.1CV8C
+          delay: '0'
+          history: 365d
+          trends: '0'
+          description: 'Количество сессий с тонкого клиента.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // подсчет количества элементов
+                  // ключ
+                  var key="app-id";
+                  // значение ключа
+                  var value_key="1CV8C";
+                  
+                  var obj=JSON.parse(value).data; 
+                  
+                  var count=0;
+                  for (var element in obj) {
+                      var entry = obj[element ];
+                      if (entry[key] === value_key) {count++}
+                  }
+                  return count;
+                  
+          master_item:
+            key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Количество сессий кластера 1С'
+        - uuid: de071dc6015647dcb5e16baa63523d09
+          name: 'Количество "ФОНОВЫХ" заданий кластера (app-id=BackgroundJob)'
+          type: DEPENDENT
+          key: CLUSTER1C.NUMBER.SESSION.BackgroundJob
+          delay: '0'
+          history: 365d
+          trends: '0'
+          description: 'Количество фоновых заданий.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // подсчет количества элементов
+                  // ключ
+                  var key="app-id";
+                  // значение ключа
+                  var value_key="BackgroundJob";
+                  
+                  var obj=JSON.parse(value).data; 
+                  
+                  var count=0;
+                  for (var element in obj) {
+                      var entry = obj[element ];
+                      if (entry[key] === value_key) {count++}
+                  }
+                  return count;
+                  
+          master_item:
+            key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Количество фоновых заданий 1С'
+        - uuid: a153ac8a79a94c60bae244e032adf15c
+          name: 'Количество КОНФИГУРАТОР сессий кластера (app-id=Designer)'
+          type: DEPENDENT
+          key: CLUSTER1C.NUMBER.SESSION.DESIGNER
+          delay: '0'
+          history: 365d
+          trends: '0'
+          description: 'Количество сессий конфигуратора.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // подсчет количества элементов
+                  // ключ
+                  var key="app-id";
+                  // значение ключа
+                  var value_key="Designer";
+                  
+                  var obj=JSON.parse(value).data; 
+                  
+                  var count=0;
+                  for (var element in obj) {
+                      var entry = obj[element ];
+                      if (entry[key] === value_key) {count++}
+                  }
+                  return count;
+                  
+          master_item:
+            key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Количество сессий кластера 1С'
+        - uuid: d63e3a84eb0f4ab1ae16f3211841d470
+          name: 'Использование памяти не ноль (memory-current!=0)'
+          type: DEPENDENT
+          key: CLUSTER1C.NUMBER.SESSION.MEMORY-CURRENT.NOTNULL
+          delay: '0'
+          history: 365d
+          trends: '0'
+          description: 'Количество памяти сессии - косвенно позволяет отслеживать нагрузку на кластер.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // подсчет количества элементов
+                  // ключ
+                  var key="memory-current";
+                  
+                  var obj=JSON.parse(value).data; 
+                  
+                  var count=0;
+                  for (var element in obj) {
+                      var entry = obj[element ];
+                      if (entry[key] >0) {count++}
+                  }
+                  return count;
+                  
+          master_item:
+            key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Использование памяти не ноль (memory-current!=0)'
+          triggers:
+            - uuid: 5f554fdccdab45a09df2815ee16dade4
+              expression: 'last(/Number of 1C cluster user sessions by database/CLUSTER1C.NUMBER.SESSION.MEMORY-CURRENT.NOTNULL,#3)>{$CLUSTER.NOTNULL.MEMORYCURRENT.DISASTER}'
+              name: 'Cluster-NotNULL-memory-current - DISASTER'
+              event_name: 'Количество сессий "memory-current!=0" > {$CLUSTER.NOTNULL.MEMORYCURRENT.DISASTER} (Текущее значение {ITEM.LASTVALUE}.)'
+              priority: DISASTER
+              manual_close: 'YES'
+              tags:
+                - tag: Cluster1C
+                  value: memory-current!=0
+            - uuid: 5cbda24a7a7d4c7aa01057fab04a853a
+              expression: 'last(/Number of 1C cluster user sessions by database/CLUSTER1C.NUMBER.SESSION.MEMORY-CURRENT.NOTNULL,#3)>{$CLUSTER.NOTNULL.MEMORYCURRENT.INFO}'
+              name: 'Cluster-NotNULL-memory-current - INFO'
+              event_name: 'Количество сессий "memory-current!=0" > {$CLUSTER.NOTNULL.MEMORYCURRENT.INFO} (Текущее значение {ITEM.LASTVALUE}.)'
+              manual_close: 'YES'
+              dependencies:
+                - name: 'Cluster-NotNULL-memory-current - WARNING'
+                  expression: 'last(/Number of 1C cluster user sessions by database/CLUSTER1C.NUMBER.SESSION.MEMORY-CURRENT.NOTNULL,#3)>{$CLUSTER.NOTNULL.MEMORYCURRENT.WARNING}'
+              tags:
+                - tag: Cluster1C
+                  value: memory-current!=0
+            - uuid: a75432c9178f41eb8671e151dab5920a
+              expression: 'last(/Number of 1C cluster user sessions by database/CLUSTER1C.NUMBER.SESSION.MEMORY-CURRENT.NOTNULL,#3)>{$CLUSTER.NOTNULL.MEMORYCURRENT.WARNING}'
+              name: 'Cluster-NotNULL-memory-current - WARNING'
+              event_name: 'Количество сессий "memory-current!=0" > {$CLUSTER.NOTNULL.MEMORYCURRENT.WARNING} (Текущее значение {ITEM.LASTVALUE}.)'
+              priority: WARNING
+              manual_close: 'YES'
+              dependencies:
+                - name: 'Cluster-NotNULL-memory-current - DISASTER'
+                  expression: 'last(/Number of 1C cluster user sessions by database/CLUSTER1C.NUMBER.SESSION.MEMORY-CURRENT.NOTNULL,#3)>{$CLUSTER.NOTNULL.MEMORYCURRENT.DISASTER}'
+              tags:
+                - tag: Cluster1C
+                  value: memory-current!=0
+        - uuid: b9c3bffbc27d493da102a15637e46ae1
+          name: 'Количество ВСЕХ сессий кластера (WebClient+Designer+1CV8+1CV8C)'
+          type: CALCULATED
+          key: CLUSTER1C.NUMBER.SESSION.USER.1CV8C
+          history: 365d
+          trends: '0'
+          params: |
+            last(//CLUSTER1C.NUMBER.SESSION.USER.WEB)+
+            last(//CLUSTER1C.NUMBER.SESSION.DESIGNER)+
+            last(//CLUSTER1C.NUMBER.SESSION.1CV8)+
+            last(//CLUSTER1C.NUMBER.SESSION.1CV8C)
+          description: 'Количество ВСЕХ сессий кластера без учета фоновых заданий.'
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Количество сессий кластера 1С'
+        - uuid: ae4cacbb0fc84b6e9509cfd43a4d48fe
+          name: 'Количество WEB сессий кластера (app-id=WebClient)'
+          type: DEPENDENT
+          key: CLUSTER1C.NUMBER.SESSION.USER.WEB
+          delay: '0'
+          history: 365d
+          trends: '0'
+          description: 'Количество сессий с вебклиентаклиента.'
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // подсчет количества элементов
+                  // ключ
+                  var key="app-id";
+                  // значение ключа
+                  var value_key="WebClient";
+                  
+                  var obj=JSON.parse(value).data; 
+                  
+                  var count=0;
+                  for (var element in obj) {
+                      var entry = obj[element ];
+                      if (entry[key] === value_key) {count++}
+                  }
+                  return count;
+                  
+          master_item:
+            key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+          tags:
+            - tag: 'Кластер 1С'
+              value: 'Количество сессий кластера 1С'
+        - uuid: e317742c30104483b095a30785dc841e
+          name: 'Версия RAC.EXE (--version)'
+          key: 'RAC.EXE-version[{$RAC.EXE},{$HOST},{$PORT}]'
+          delay: 1d
+          history: 90d
+          value_type: TEXT
+          trends: '0'
+          status: DISABLED
+          description: |
+            RAC.EXE-version[{$RAC.EXE},{$HOST},{$PORT}]
+            RAC.EXE-version["c:\Program Files\1cv8\8.3.25.1336\bin\rac.exe","localhost","1545"]
+          tags:
+            - tag: 'Мониторинг кластера 1С'
+        - uuid: 7014f4d568674942971f22d1694b8e3f
+          name: 'Версия RAS.EXE (agent version)'
+          key: 'RAS.EXE-version[{$RAC.EXE},{$HOST},{$PORT}]'
+          delay: 1d
+          history: 90d
+          value_type: TEXT
+          trends: '0'
+          status: DISABLED
+          tags:
+            - tag: 'Мониторинг кластера 1С'
+      discovery_rules:
+        - uuid: 3fe03b4f8b7d43fcb75d7c2aab9f45fe
+          name: 'Список баз кластера 1С({#CLUSTER.UUID}) - обнаружение БАЗ'
+          key: 'CLUSTER1C.GET.LIST.BASE[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD},{#INFOBASE}]'
+          item_prototypes:
+            - uuid: 1a9151924fd64ca2ba620be83637c24a
+              name: 'Список сессий базы  "{#NAME}" "{#INFOBASE}"2'
+              type: DEPENDENT
+              key: 'CLUSTER1C.LIST.SESSION.BASE2[{#NAME}]'
+              delay: '0'
+              value_type: TEXT
+              trends: '0'
+              status: DISABLED
+              discover: NO_DISCOVER
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@.infobase  == "{#INFOBASE}")]'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@[''app-id'']== ''BackgroundJob'')]'
+              master_item:
+                key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Список сессий базы "{#NAME}"'
+            - uuid: 5ca0a0d41e334717a8c4eba7247d5b7b
+              name: 'Список сессий базы  "{#NAME}" "{#INFOBASE}"'
+              type: DEPENDENT
+              key: 'CLUSTER1C.LIST.SESSION.BASE[{#NAME}]'
+              delay: '0'
+              value_type: TEXT
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@.infobase  == "{#INFOBASE}")]'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '[ ]'
+              master_item:
+                key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Список сессий базы "{#NAME}"'
+            - uuid: d00a777509a7476aadbbe91bd4f1b96e
+              name: 'Количество "ТОНКИХ" сессий (1CV8C) базы  "{#NAME}" "{#INFOBASE}"'
+              type: DEPENDENT
+              key: 'CLUSTER1C.NUMBER.SESSION.BASE.1CV8C[{#NAME}]'
+              delay: '0'
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@[''app-id'']== ''1CV8C'')].length()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: 'CLUSTER1C.LIST.SESSION.BASE[{#NAME}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Список сессий базы "{#NAME}"'
+            - uuid: cd7b84df443a4c3b90baf357dcdb8234
+              name: 'Количество "ТОЛСТЫХ" сессий (1CV8) базы  "{#NAME}" "{#INFOBASE}"'
+              type: DEPENDENT
+              key: 'CLUSTER1C.NUMBER.SESSION.BASE.1CV8[{#NAME}]'
+              delay: '0'
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@[''app-id'']== ''1CV8'')].length()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: 'CLUSTER1C.LIST.SESSION.BASE[{#NAME}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Список сессий базы "{#NAME}"'
+            - uuid: a6351cd3d7304941b9a34cc46b59ca94
+              name: 'Количество "ФОНОВЫХ" сессий (BackgroundJob) базы  "{#NAME}" "{#INFOBASE}"'
+              type: DEPENDENT
+              key: 'CLUSTER1C.NUMBER.SESSION.BASE.BACKGROUDJOB[{#NAME}]'
+              delay: '0'
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@[''app-id'']== ''BackgroundJob'')].length()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: 'CLUSTER1C.LIST.SESSION.BASE[{#NAME}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Список сессий базы "{#NAME}"'
+            - uuid: aa64831370c64516807d89a1044081a9
+              name: 'Количество "КОНФИГУРАТОР" сессий (Designer) базы  "{#NAME}" "{#INFOBASE}"'
+              type: DEPENDENT
+              key: 'CLUSTER1C.NUMBER.SESSION.BASE.DESIGNER[{#NAME}]'
+              delay: '0'
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@[''app-id'']== ''Designer'')].length()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: 'CLUSTER1C.LIST.SESSION.BASE[{#NAME}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Список сессий базы "{#NAME}"'
+            - uuid: 6a8d007246d640be923ab3bd7bb1bb4b
+              name: 'Количество WEB сессий (WebClient) базы  "{#NAME}" "{#INFOBASE}"'
+              type: DEPENDENT
+              key: 'CLUSTER1C.NUMBER.SESSION.BASE.WEBCLIENT[{#NAME}]'
+              delay: '0'
+              trends: '0'
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JSONPATH
+                  parameters:
+                    - '$..[?(@[''app-id'']== ''WebClient'')].length()'
+                  error_handler: CUSTOM_VALUE
+                  error_handler_params: '0'
+              master_item:
+                key: 'CLUSTER1C.LIST.SESSION.BASE[{#NAME}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Список сессий базы "{#NAME}"'
+            - uuid: a65baaa93fc946e59cd3f36592bdfb28
+              name: 'Количество сессий базы  "{#NAME}" "{#INFOBASE}"'
+              type: DEPENDENT
+              key: 'CLUSTER1C.NUMBER.SESSION.BASE[{#NAME}]'
+              delay: '0'
+              trends: '0'
+              status: DISABLED
+              discover: NO_DISCOVER
+              preprocessing:
+                - type: JAVASCRIPT
+                  parameters:
+                    - 'return value;'
+                - type: JAVASCRIPT
+                  parameters:
+                    - |
+                      // подсчет количества элементов
+                      // ключ
+                      var key="infobase";
+                      // значение ключа
+                      var value_key='{$INFOBASE}'.replace(/"/g, '');
+                      var obj=JSON.parse(value).data; 
+                      
+                      var count=0;
+                      for (var element in obj) {
+                          var entry = obj[element ];
+                          if (entry[key] === value_key) {count++}
+                      }
+                      return count;
+              master_item:
+                key: 'CLUSTER1C.GET.LIST.SESSION[{$RAC.EXE},{$HOST},{$PORT},{$CLUSTER1C.UUID},{$CLUSTER1C.USER},{$CLUSTER1C.PWD}]'
+              tags:
+                - tag: 'Кластер 1С'
+                  value: 'Количество базы "{#NAME}"'
+          graph_prototypes:
+            - uuid: 32edf659987844cba7afcbfc1587640d
+              name: 'Сессии по типам  "{#NAME}" "{#INFOBASE}"'
+              show_work_period: 'NO'
+              show_triggers: 'NO'
+              type: STACKED
+              graph_items:
+                - color: FF0000
+                  calc_fnc: MIN
+                  item:
+                    host: 'Number of 1C cluster user sessions by database'
+                    key: 'CLUSTER1C.NUMBER.SESSION.BASE.DESIGNER[{#NAME}]'
+                - sortorder: '1'
+                  color: FFFF00
+                  calc_fnc: MIN
+                  item:
+                    host: 'Number of 1C cluster user sessions by database'
+                    key: 'CLUSTER1C.NUMBER.SESSION.BASE.1CV8[{#NAME}]'
+                - sortorder: '2'
+                  color: 00FF00
+                  calc_fnc: MIN
+                  item:
+                    host: 'Number of 1C cluster user sessions by database'
+                    key: 'CLUSTER1C.NUMBER.SESSION.BASE.1CV8C[{#NAME}]'
+                - sortorder: '3'
+                  color: B0BEC5
+                  calc_fnc: MIN
+                  item:
+                    host: 'Number of 1C cluster user sessions by database'
+                    key: 'CLUSTER1C.NUMBER.SESSION.BASE.BACKGROUDJOB[{#NAME}]'
+                - sortorder: '4'
+                  color: 0040FF
+                  calc_fnc: MIN
+                  item:
+                    host: 'Number of 1C cluster user sessions by database'
+                    key: 'CLUSTER1C.NUMBER.SESSION.BASE.WEBCLIENT[{#NAME}]'
+          lld_macro_paths:
+            - lld_macro: '{#DESCR}'
+              path: $.descr
+            - lld_macro: '{#INFOBASE}'
+              path: $.infobase
+            - lld_macro: '{#NAME}'
+              path: $.name
+          preprocessing:
+            - type: JAVASCRIPT
+              parameters:
+                - |
+                  // заворачиваю в '"' ключ и значение
+                  value=value.replace(/([(\wа-яА-Я-]*)( *: *)([(.:"!,\wа-яА-ЯёЁ -]*)/gi,     '"$1":"$3"');
+                  
+                  // убираем двойные '"'
+                  value=value.replace(/"([()\wа-яА-Я-]*)"( *: *)""([().:!,\wа-яА-ЯёЁ -]+)""/gi,     '"$1":"$3"');
+                  
+                  // добавляем ',' между метаданными описания базы
+                  value= value.replace(/((.*):(\w|.*|[а-яА-ЯёЁ]))/gi, '$1,');
+                  
+                  // разделяем сущности "infobase"
+                  value= value.replace(/(,\r\n\r\n"infobase")/gi, '},\n{"infobase"');
+                  
+                  // убираем конец строки
+                  value= value.replace(/[\r|\n]/g, '') ; 
+                  value= value.replace(/,$/g, '') ; 
+                  
+                  // оборачиваю всё
+                  value= value.replace(/$/gi, '}]}') ; 
+                  value= value.replace(/^/gi, '{"data": [{') ; 
+                  
+                  return value;
+      tags:
+        - tag: CLUSTER1C
+      macros:
+        - macro: '{$CLUSTER.NOTNULL.MEMORYCURRENT.DISASTER}'
+          value: '60'
+          description: 'Триггер события NOTNULL.MEMORYCURRENT.DISASTER'
+        - macro: '{$CLUSTER.NOTNULL.MEMORYCURRENT.INFO}'
+          value: '15'
+          description: 'Триггер события NOTNULL.MEMORYCURRENT.INFO'
+        - macro: '{$CLUSTER.NOTNULL.MEMORYCURRENT.WARNING}'
+          value: '30'
+          description: 'Триггер события NOTNULL.MEMORYCURRENT.CRITICAL'
+        - macro: '{$CLUSTER1C.PWD}'
+          type: SECRET_TEXT
+          description: 'Пароль пользователя кластера 1С.'
+        - macro: '{$CLUSTER1C.USER}'
+          value: RACUSER
+          description: 'Логин пользователя кластера 1С.'
+        - macro: '{$CLUSTER1C.UUID}'
+          value: 11111111-2222-3333-4444-555555555555
+          description: 'UUID кластера 1С. Ввести UUID кластера 1С.'
+        - macro: '{$HOST}'
+          value: localhost
+          description: 'ip адрес/FQDN узла на котором работает утилита rac.'
+        - macro: '{$PORT}'
+          value: '1545'
+          description: 'Порт на котором работает утилита rac'
+        - macro: '{$RAC.EXE}'
+          value: 'C:\Program Files\1cv8\8.3.25.1394\bin\rac.exe'
+          description: 'Путь к утилите rac, без кавычек.'
+  graphs:
+    - uuid: f34aa677139f4b2394b9039a923648ba
+      name: 'Пирог - Сессии по типам  (Кластер)'
+      yaxismax: '0'
+      show_work_period: 'NO'
+      show_triggers: 'NO'
+      type: PIE
+      graph_items:
+        - color: 00FF00
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.1CV8C
+        - sortorder: '1'
+          color: FFFF00
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.1CV8
+        - sortorder: '2'
+          color: 00ACC1
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.BackgroundJob
+        - sortorder: '3'
+          color: FFEB3B
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.USER.WEB
+        - sortorder: '4'
+          color: FF0000
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.DESIGNER
+    - uuid: 1a6b59edc460468b9d4062b172576404
+      name: 'Сессии по типам  (Кластер целиком)'
+      show_work_period: 'NO'
+      show_triggers: 'NO'
+      graph_items:
+        - color: 00FF00
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.1CV8C
+        - sortorder: '1'
+          color: FFFF00
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.1CV8
+        - sortorder: '2'
+          color: 00ACC1
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.BackgroundJob
+        - sortorder: '3'
+          color: FFEB3B
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.USER.WEB
+        - sortorder: '4'
+          color: FF0000
+          calc_fnc: MIN
+          item:
+            host: 'Number of 1C cluster user sessions by database'
+            key: CLUSTER1C.NUMBER.SESSION.DESIGNER
